@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+
+set -o nounset
+set -o errexit
+set -o pipefail
+
+## uncomment for debugging
+#set -o trace
+
+matchPattern="$1"
+maxFindDepth=2
+errorLog='/dev/stderr'
+
+dirPrefixes=(
+  {$HOME,}/Applications
+  {$HOME,}/Library
+  {$HOME,}/Library/Saved\ Application\ State
+  {$HOME,}/Library/Application\ Support
+  {$HOME,}/Library/Containers
+  {$HOME,}/Library/Caches
+  {$HOME,}/Library/Preferences
+  {$HOME,}/Library/Cookies
+  {$HOME,}/Library/Logs
+  {$HOME,}/Library/LaunchAgents
+  {$HOME,}/Library/LaunchDaemons
+  /System/Library
+)
+
+log() {
+  level="$1"
+  message="$2"
+  echo "[log $level]: $message" > $errorLog
+}
+
+fatal() {
+  log 'fatal' "$1"
+  exit 255
+}
+
+notice() {
+  log 'notice' "$1"
+}
+
+now() {
+  date -Iseconds
+}
+
+## main
+notice "$(basename "$0") starting at $(now) w/ args: $*"
+
+notice "creating temp file"
+tmpFile=$(mktemp -t "$(basename "$0")")
+notice "created temp file: $tmpFile"
+
+for dirPath in "${dirPrefixes[@]}"; do
+  if [[ ! (-e "$dirPath" || -d "$dirPath") ]]; then
+    notice "skipping path: $dirPath: nonexistent or non-directory"
+    continue
+  fi
+
+  notice "searching dir: '$dirPath' w/ pattern='$matchPattern' and maxdepth=$maxFindDepth"
+
+  fd \
+    --show-errors \
+    --one-file-system \
+    --max-depth $maxFindDepth \
+    "$matchPattern" \
+    "$dirPath"
+done \
+| fzf \
+  --exit-0 \
+  --header='TAB=(de)select | ESC=clear/abort | ENTER=rm-selected' \
+  --bind='enter:accept-non-empty' \
+  --bind='esc:close' \
+  --header-first \
+  --multi \
+  --sync \
+  --preview-window='wrap' \
+  --no-mouse \
+  --cycle \
+  --border \
+  --height=~100% \
+  --preview='stat -s {}' \
+> "$tmpFile"
+
+notice "interactively removing files saved in: $tmpFile"
+xargs -I {} rm -rix {} < "$tmpFile"
+
+notice "removing temp file: $tmpFile"
+rm "$tmpFile"
+
+notice "$(basename "$0") finished at $(now)"
