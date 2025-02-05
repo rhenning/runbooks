@@ -23,3 +23,28 @@ Tested:
 Tested:
 
 - MacOS Sequoia 15.3
+
+## Property Lists
+
+`plutil(1)` – property list utility
+
+### Print plist in human-readable format
+
+```
+% plutil -p ${filename}
+```
+
+Tested:
+
+- MacOS Sequoia 15.3
+
+### Check plist for errors
+
+```
+% plutil -lint ${filename}
+% plutil ${filename}
+```
+
+Tested:
+
+- MacOS Sequoia 15.3
